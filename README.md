@@ -16,7 +16,7 @@ Automated FLAC metadata tagging for Grateful Dead and Jerry Garcia live show rec
 ## Installation
 
 ```bash
-git clone https://github.com/yourusername/GratefulDeadAutoTagger.git
+git clone https://github.com/jvmjr/GratefulDeadAutoTagger.git
 cd GratefulDeadAutoTagger
 pip install -r requirements.txt
 ```
