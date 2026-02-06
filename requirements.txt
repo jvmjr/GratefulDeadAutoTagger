@@ -1,0 +1,13 @@
+# GratefulDead Auto-Tagger Dependencies
+
+# Fuzzy string matching (high-performance)
+rapidfuzz>=3.0.0
+
+# FLAC audio file tagging
+mutagen>=1.45.0
+
+# Date parsing utilities
+python-dateutil>=2.8.0
+
+# Image processing for artwork dimension checking (optional but recommended)
+Pillow>=9.0.0
