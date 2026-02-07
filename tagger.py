@@ -32,6 +32,7 @@ from config import (
     UNMATCHED_SONGS_PATH, SEGUE_LOG_PATH, LOGS_DIR, AUTO_APPLY_THRESHOLD
 )
 from song_matcher import SongMatcher, MatchResult, get_final_title
+import re
 from album_tagger import AlbumTagger, AlbumInfo
 from set_tagger import SetTagger, TrackAssignment, assign_extras_to_encore
 from txt_parser import TxtParser, get_title_from_txt
@@ -98,6 +99,49 @@ class AutoTagger:
         self.skipped_count = 0
         self.artwork_copied = 0
         self.artwork_not_found = 0
+    
+    def _normalize_special_titles(self, title: str, track_number: int) -> str:
+        """
+        Normalize special titles for Bill Graham and Wavy Gravy.
+        
+        Bill Graham:
+        - At beginning of set (track 1) -> "Bill Graham Introduction"
+        - Otherwise -> "Bill Graham Announcement"
+        
+        Wavy Gravy:
+        - At beginning of set (track 1) OR title contains "introduction" -> 
+          "Introduction by Wavy Gravy"
+        - Otherwise -> "Wavy Gravy Announcement"
+        
+        Args:
+            title: The current title
+            track_number: Track number within the set (1 = first track)
+            
+        Returns:
+            Normalized title, or original if no special handling needed
+        """
+        title_lower = title.lower()
+        
+        # Keywords that indicate intro/announcement/chatter type tracks
+        intro_keywords = ['intro', 'announcement', 'chatter', 'banter', 'talk']
+        has_intro_keyword = any(kw in title_lower for kw in intro_keywords)
+        
+        # Bill Graham handling
+        if 'bill graham' in title_lower and has_intro_keyword:
+            if track_number == 1:
+                return "Bill Graham Introduction"
+            else:
+                return "Bill Graham Announcement"
+        
+        # Wavy Gravy handling
+        if 'wavy gravy' in title_lower and has_intro_keyword:
+            # "Introduction" in title OR at beginning of set
+            if 'intro' in title_lower or track_number == 1:
+                return "Introduction by Wavy Gravy"
+            else:
+                return "Wavy Gravy Announcement"
+        
+        return title
     
     def process_folder(self, folder_path: Path, is_gd: int = 1, 
                        num_pad_chars: int = 2) -> List[FileTagUpdate]:
@@ -224,6 +268,9 @@ class AutoTagger:
             track_total = track_totals.get(assignment.disc_number, len(flac_files))
             
             final_title = get_final_title(result)
+            
+            # Normalize special titles (Bill Graham, Wavy Gravy) based on position
+            final_title = self._normalize_special_titles(final_title, assignment.track_number)
             
             update = FileTagUpdate(
                 file_path=flac_file,
