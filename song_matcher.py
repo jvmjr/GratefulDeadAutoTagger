@@ -35,6 +35,63 @@ from config import (
 )
 
 
+# Words that should stay lowercase in titles (unless first word)
+LOWERCASE_WORDS = {'a', 'an', 'the', 'and', 'but', 'or', 'for', 'nor', 'on', 
+                   'at', 'to', 'from', 'by', 'of', 'in', 'with', 'vs'}
+
+
+def title_case(text: str) -> str:
+    """
+    Convert text to proper Title Case for song titles.
+    
+    - Capitalizes first letter of each word
+    - Keeps small words (a, an, the, and, etc.) lowercase unless first word
+    - Preserves existing all-caps words (acronyms like "USA", "II", "IV")
+    - Handles contractions properly (I'm, You're, etc.)
+    
+    Args:
+        text: The text to convert
+        
+    Returns:
+        Title-cased text
+    """
+    if not text:
+        return text
+    
+    words = text.split()
+    result = []
+    
+    for i, word in enumerate(words):
+        # Preserve all-caps words (likely acronyms or Roman numerals)
+        if word.isupper() and len(word) > 1:
+            result.append(word)
+            continue
+        
+        # Check if it's a small word (but always capitalize first word)
+        word_lower = word.lower()
+        if i > 0 and word_lower in LOWERCASE_WORDS:
+            result.append(word_lower)
+            continue
+        
+        # Handle hyphenated words (capitalize each part)
+        if "-" in word:
+            parts = word.split("-")
+            capitalized_parts = [p.capitalize() for p in parts]
+            result.append('-'.join(capitalized_parts))
+            continue
+        
+        # Handle contractions - only capitalize the first part
+        # e.g., "he's" -> "He's", not "He'S"
+        if "'" in word:
+            result.append(word.capitalize())
+            continue
+        
+        # Standard capitalization
+        result.append(word.capitalize())
+    
+    return ' '.join(result)
+
+
 @dataclass
 class MatchResult:
     """Result of a song title match attempt."""
@@ -176,8 +233,7 @@ class SongMatcher:
         # e.g., "Lovelight take 1  [0:41] = [0:22] ; Lovelight [0:17]"
         title = re.sub(r'\s*=\s*.*$', '', title)
         
-        # Remove "take X" or "take XX" suffix
-        title = re.sub(r'\s+take\s+\d{1,2}\s*$', '', title, flags=re.IGNORECASE)
+        # Keep take numbers - they're meaningful for outtakes/rehearsals
         
         # Normalize multiple spaces to single space
         title = re.sub(r'\s+', ' ', title)
@@ -464,6 +520,9 @@ def get_final_title(result: MatchResult) -> str:
     """
     Get the final title string including segue marker if present.
     
+    For matched songs, uses the canonical title from JerryBase.
+    For unmatched songs, applies Title Case normalization.
+    
     Args:
         result: The match result to extract the title from
         
@@ -473,7 +532,8 @@ def get_final_title(result: MatchResult) -> str:
     if result.matched_title:
         title = result.matched_title
     else:
-        title = result.cleaned_title
+        # Apply Title Case normalization for unmatched songs
+        title = title_case(result.cleaned_title)
     
     if result.has_segue:
         title = title + " >"

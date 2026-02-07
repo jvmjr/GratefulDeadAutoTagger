@@ -11,6 +11,7 @@ Assigns DISCNUMBER based on musical sets from JerryBase and renumbers tracks.
 Also sets TRACKTOTAL per disc and DISCTOTAL for the show.
 """
 
+import re
 from pathlib import Path
 from typing import Optional, List, Dict, Tuple
 from dataclasses import dataclass
@@ -30,6 +31,36 @@ class TrackAssignment:
     title: str
     is_extra: bool
     matched_song: Optional[str] = None
+    filename_disc: Optional[int] = None
+    filename_track: Optional[int] = None
+
+
+def parse_filename_disc_track(filename: str) -> Tuple[Optional[int], Optional[int]]:
+    """
+    Parse disc and track numbers from filename.
+    
+    Handles formats like:
+    - gd1973-03-24d1t01.flac -> (1, 1)
+    - gd1973-03-24d2t05.flac -> (2, 5)
+    - someshow-t03.flac -> (None, 3)
+    
+    Args:
+        filename: The filename to parse
+        
+    Returns:
+        Tuple of (disc_number, track_number) or (None, None) if not found
+    """
+    # Try d#t## pattern first
+    match = re.search(r'd(\d+)t(\d+)', filename, re.IGNORECASE)
+    if match:
+        return (int(match.group(1)), int(match.group(2)))
+    
+    # Try t## pattern (no disc)
+    match = re.search(r't(\d+)', filename, re.IGNORECASE)
+    if match:
+        return (None, int(match.group(1)))
+    
+    return (None, None)
 
 
 class SetTagger:
@@ -109,6 +140,9 @@ class SetTagger:
         # First pass: gather all track info and identify real songs vs extras
         track_info = []
         for i, file_path in enumerate(files):
+            # Parse filename disc-track numbers
+            filename_disc, filename_track = parse_filename_disc_track(file_path.name)
+            
             # Use pre-matched results if available, otherwise do our own matching
             if match_results and i < len(match_results):
                 result = match_results[i]
@@ -138,7 +172,9 @@ class SetTagger:
                 'raw_title': raw_title,
                 'is_extra': is_extra,
                 'song_set': song_set,
-                'matched_song': result.matched_title if hasattr(result, 'matched_title') else matched_title
+                'matched_song': result.matched_title if hasattr(result, 'matched_title') else matched_title,
+                'filename_disc': filename_disc,
+                'filename_track': filename_track
             })
         
         # Second pass: assign disc numbers
@@ -169,7 +205,9 @@ class SetTagger:
                 track_number=0,  # Will be assigned later
                 title=info['matched_title'] or info['raw_title'],
                 is_extra=info['is_extra'],
-                matched_song=info['matched_song']
+                matched_song=info['matched_song'],
+                filename_disc=info['filename_disc'],
+                filename_track=info['filename_track']
             ))
         
         # Renumber tracks within each disc
@@ -218,6 +256,9 @@ class SetTagger:
         assignments = []
         
         for i, file_path in enumerate(files, 1):
+            # Parse filename disc-track numbers
+            filename_disc, filename_track = parse_filename_disc_track(file_path.name)
+            
             # Use pre-matched results if available
             if match_results and (i-1) < len(match_results):
                 result = match_results[i-1]
@@ -241,35 +282,53 @@ class SetTagger:
                 track_number=i,
                 title=matched_title or raw_title,
                 is_extra=is_extra,
-                matched_song=result.matched_title if hasattr(result, 'matched_title') else matched_title
+                matched_song=result.matched_title if hasattr(result, 'matched_title') else matched_title,
+                filename_disc=filename_disc,
+                filename_track=filename_track
             ))
         
         return assignments
     
     def _renumber_tracks(self, assignments: List[TrackAssignment]) -> List[TrackAssignment]:
         """
-        Renumber tracks sequentially within each disc while preserving file order.
+        Renumber tracks sequentially within each disc while preserving filename order.
         
-        The assignments list is assumed to be in physical file order. This method
-        assigns track numbers within each disc based on that order, ensuring that
-        files maintain their physical sequence.
+        The assignments list is assumed to be in physical file order. This method:
+        1. Groups tracks by disc_number (set)
+        2. Within each disc, sorts by (filename_disc, filename_track) to maintain physical order
+        3. Assigns sequential track numbers within each disc
+        
+        This ensures that sorting by (disc_number, track_number) gives the same order
+        as sorting by filename (d#t##).
         """
-        # Track the next track number for each disc
-        disc_track_numbers: Dict[int, int] = {}
-        
-        # Process in the order given (which should be file order)
+        # Group assignments by disc_number
+        discs: Dict[int, List[TrackAssignment]] = {}
         for assign in assignments:
             disc_num = assign.disc_number
-            
-            # Initialize or increment track number for this disc
-            if disc_num not in disc_track_numbers:
-                disc_track_numbers[disc_num] = 1
-            else:
-                disc_track_numbers[disc_num] += 1
-            
-            assign.track_number = disc_track_numbers[disc_num]
+            if disc_num not in discs:
+                discs[disc_num] = []
+            discs[disc_num].append(assign)
         
-        return assignments
+        # Within each disc, sort by filename disc-track order and renumber
+        for disc_num, disc_tracks in discs.items():
+            # Sort by (filename_disc, filename_track) to preserve physical file order
+            # Files without filename disc/track info stay in their current position
+            disc_tracks.sort(key=lambda x: (
+                x.filename_disc if x.filename_disc is not None else 999,
+                x.filename_track if x.filename_track is not None else 999,
+                x.file_path.name  # Fallback to filename alphabetically
+            ))
+            
+            # Assign sequential track numbers
+            for track_num, assign in enumerate(disc_tracks, 1):
+                assign.track_number = track_num
+        
+        # Return assignments in filename order (reconstruct sorted list)
+        result = []
+        for disc_num in sorted(discs.keys()):
+            result.extend(discs[disc_num])
+        
+        return result
     
     def get_totals(self, assignments: List[TrackAssignment]) -> Tuple[int, Dict[int, int]]:
         """

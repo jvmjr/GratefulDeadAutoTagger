@@ -330,10 +330,39 @@ class AutoTagger:
                     needs_review=True
                 )
         
-        # Standard logic: try existing tag first
+        # Standard logic: try existing tag first, but check txt file for ordering conflicts
         if raw_title and setlist_songs:
             result = self.matcher.match(raw_title)
             matched_lower = result.matched_title.lower() if result.matched_title else ''
+            
+            # Check txt file first to detect ordering conflicts
+            txt_title = txt_mappings.get(flac_file.name)
+            txt_result = None
+            txt_matched_lower = None
+            
+            if txt_title:
+                txt_result = self.matcher.match(txt_title)
+                txt_matched_lower = txt_result.matched_title.lower() if txt_result.matched_title else ''
+            
+            # If txt file has a different song than the existing tag, prefer txt file
+            # This prevents ordering issues where tags are shuffled
+            if txt_matched_lower and matched_lower != txt_matched_lower:
+                # Txt file disagrees with existing tag
+                if txt_matched_lower in setlist_songs:
+                    # Txt file has a setlist song - use it
+                    return MatchResult(
+                        original_title=raw_title,
+                        cleaned_title=txt_result.cleaned_title,
+                        matched_title=setlist_songs[txt_matched_lower],
+                        confidence=txt_result.confidence,
+                        match_source='txt_setlist',
+                        has_segue=txt_result.has_segue,
+                        needs_review=False
+                    )
+                else:
+                    # Txt file has non-setlist song (extra/intro/jam) but existing tag
+                    # has a setlist song in wrong position - prefer txt for correct ordering
+                    return txt_result
             
             # Detect suspicious tags that should prefer txt file
             is_suspicious = (
@@ -357,21 +386,16 @@ class AutoTagger:
                         needs_review=result.needs_review
                     )
                 # Low confidence or suspicious - check txt file first
-                txt_title = txt_mappings.get(flac_file.name)
-                if txt_title:
-                    txt_result = self.matcher.match(txt_title)
-                    txt_matched_lower = txt_result.matched_title.lower() if txt_result.matched_title else ''
-                    
-                    if txt_matched_lower in setlist_songs:
-                        return MatchResult(
-                            original_title=raw_title,
-                            cleaned_title=txt_result.cleaned_title,
-                            matched_title=setlist_songs[txt_matched_lower],
-                            confidence=txt_result.confidence,
-                            match_source='txt_setlist',
-                            has_segue=txt_result.has_segue,
-                            needs_review=False
-                        )
+                if txt_title and txt_matched_lower and txt_matched_lower in setlist_songs:
+                    return MatchResult(
+                        original_title=raw_title,
+                        cleaned_title=txt_result.cleaned_title,
+                        matched_title=setlist_songs[txt_matched_lower],
+                        confidence=txt_result.confidence,
+                        match_source='txt_setlist',
+                        has_segue=txt_result.has_segue,
+                        needs_review=False
+                    )
                 # No txt file or txt doesn't match - use original low-confidence result
                 return MatchResult(
                     original_title=result.original_title,
@@ -384,23 +408,17 @@ class AutoTagger:
                 )
             
             # Matched song is NOT in this show's setlist - try txt file
-            txt_title = txt_mappings.get(flac_file.name)
-            if txt_title:
-                txt_result = self.matcher.match(txt_title)
-                txt_matched_lower = txt_result.matched_title.lower() if txt_result.matched_title else ''
-                
-                # Check if txt file's match is in the setlist
-                if txt_matched_lower in setlist_songs:
-                    # Use the JerryBase canonical name from the setlist
-                    return MatchResult(
-                        original_title=raw_title,  # Keep original for reference
-                        cleaned_title=txt_result.cleaned_title,
-                        matched_title=setlist_songs[txt_matched_lower],
-                        confidence=txt_result.confidence,
-                        match_source='txt_setlist',  # New source type
-                        has_segue=txt_result.has_segue,
-                        needs_review=False
-                    )
+            if txt_title and txt_matched_lower and txt_matched_lower in setlist_songs:
+                # Use the JerryBase canonical name from the setlist
+                return MatchResult(
+                    original_title=raw_title,  # Keep original for reference
+                    cleaned_title=txt_result.cleaned_title,
+                    matched_title=setlist_songs[txt_matched_lower],
+                    confidence=txt_result.confidence,
+                    match_source='txt_setlist',  # New source type
+                    has_segue=txt_result.has_segue,
+                    needs_review=False
+                )
         
         # Fallback: no setlist or no match - use original logic
         # If no title or generic title, try txt file

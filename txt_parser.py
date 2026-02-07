@@ -156,6 +156,12 @@ class TxtParser:
             # Standard: "01. Song" or "01) Song"
             match = re.match(r'^(\d{1,2})[.\)]\s*(.+)', line_stripped)
             
+            # Handle encore format: "8: E: Johnny B. Goode"
+            if not match:
+                encore_match = re.match(r'^(\d{1,2}):\s*E:\s*(.+)', line_stripped, re.IGNORECASE)
+                if encore_match:
+                    match = encore_match
+            
             # Fallback: "01 Song" (single space) — only inside a tracklist section
             if not match and in_tracklist:
                 match = re.match(r'^(\d{1,2})\s+([A-Za-z/].+)', line_stripped)
