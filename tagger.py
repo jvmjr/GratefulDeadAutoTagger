@@ -152,7 +152,7 @@ class AutoTagger:
         file_results: List[MatchResult] = []
         
         for flac_file in flac_files:
-            result = self._process_file(flac_file, txt_mappings)
+            result = self._process_file(flac_file, txt_mappings, setlist)
             file_results.append(result)
         
         # Assign discs based on setlist
@@ -211,8 +211,15 @@ class AutoTagger:
         
         return updates
     
-    def _process_file(self, flac_file: Path, txt_mappings: Dict[str, str]) -> MatchResult:
-        """Process a single FLAC file to get matched title."""
+    def _process_file(self, flac_file: Path, txt_mappings: Dict[str, str], 
+                       setlist: List[Dict] = None) -> MatchResult:
+        """
+        Process a single FLAC file to get matched title.
+        
+        Cross-validates against the show's setlist from JerryBase. If the existing
+        tag doesn't match a song in this show's setlist, checks the txt file.
+        Uses JerryBase canonical naming.
+        """
         try:
             audio = FLAC(str(flac_file))
             raw_title = audio.get('TITLE', [''])[0] if audio.get('TITLE') else ''
@@ -220,6 +227,50 @@ class AutoTagger:
             print(f"  Error reading {flac_file.name}: {e}")
             raw_title = ''
         
+        # Build set of canonical song names for this show (lowercase for comparison)
+        setlist_songs = {}
+        if setlist:
+            for song in setlist:
+                setlist_songs[song['song_name'].lower()] = song['song_name']
+        
+        # First, try to match the existing tag against this show's setlist
+        if raw_title and setlist_songs:
+            result = self.matcher.match(raw_title)
+            matched_lower = result.matched_title.lower() if result.matched_title else ''
+            
+            # Check if the matched song is in this show's setlist
+            if matched_lower in setlist_songs:
+                # Use the JerryBase canonical name from the setlist
+                return MatchResult(
+                    original_title=result.original_title,
+                    cleaned_title=result.cleaned_title,
+                    matched_title=setlist_songs[matched_lower],
+                    confidence=result.confidence,
+                    match_source=result.match_source,
+                    has_segue=result.has_segue,
+                    needs_review=result.needs_review
+                )
+            
+            # Matched song is NOT in this show's setlist - try txt file
+            txt_title = txt_mappings.get(flac_file.name)
+            if txt_title:
+                txt_result = self.matcher.match(txt_title)
+                txt_matched_lower = txt_result.matched_title.lower() if txt_result.matched_title else ''
+                
+                # Check if txt file's match is in the setlist
+                if txt_matched_lower in setlist_songs:
+                    # Use the JerryBase canonical name from the setlist
+                    return MatchResult(
+                        original_title=raw_title,  # Keep original for reference
+                        cleaned_title=txt_result.cleaned_title,
+                        matched_title=setlist_songs[txt_matched_lower],
+                        confidence=txt_result.confidence,
+                        match_source='txt_setlist',  # New source type
+                        has_segue=txt_result.has_segue,
+                        needs_review=False
+                    )
+        
+        # Fallback: no setlist or no match - use original logic
         # If no title or generic title, try txt file
         if not raw_title or raw_title.lower().startswith('d') or raw_title.lower().startswith('t'):
             txt_title = txt_mappings.get(flac_file.name)
