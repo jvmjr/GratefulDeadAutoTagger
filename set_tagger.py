@@ -99,17 +99,15 @@ class SetTagger:
         if encore_set is None and set_info:
             encore_set = set_info[-1]['set_seq']
         
-        assignments = []
-        current_set = 1
-        last_known_set = 1
-        
         # Build song-to-set mapping
         song_to_set = {}
         for song in setlist:
             song_to_set[song['song_name'].lower()] = song['set_seq']
         
+        # First pass: gather all track info and identify real songs vs extras
+        track_info = []
         for file_path in files:
-            # Get title from file (we'll match it later in the main tagger)
+            # Get title from file
             try:
                 audio = FLAC(str(file_path))
                 raw_title = audio.get('TITLE', [''])[0] if audio.get('TITLE') else ''
@@ -123,30 +121,91 @@ class SetTagger:
             # Determine if this is an extra track
             is_extra = is_extra_track(raw_title) or result.match_source == 'extra'
             
-            # Find which set this song belongs to
+            # Find which set this song belongs to (None for extras/unknowns)
+            song_set = None
             if matched_title and matched_title.lower() in song_to_set:
-                current_set = song_to_set[matched_title.lower()]
-                last_known_set = current_set
-            elif is_extra:
-                # Extra tracks stay with the current/last known set
-                current_set = last_known_set
+                song_set = song_to_set[matched_title.lower()]
+            
+            track_info.append({
+                'file_path': file_path,
+                'matched_title': matched_title,
+                'raw_title': raw_title,
+                'is_extra': is_extra,
+                'song_set': song_set,
+                'matched_song': result.matched_title
+            })
+        
+        # Second pass: assign disc numbers
+        # Extra tracks attach to the NEXT real song's set (look ahead)
+        assignments = []
+        
+        for i, info in enumerate(track_info):
+            if info['song_set'] is not None:
+                # Real song with known set
+                disc_number = info['song_set']
+            elif info['is_extra']:
+                # Extra track - look ahead for next real song's set
+                disc_number = self._find_next_song_set(track_info, i, song_to_set)
+                if disc_number is None:
+                    # No next song found - fall back to previous song's set
+                    disc_number = self._find_prev_song_set(track_info, i, song_to_set)
+                if disc_number is None:
+                    disc_number = 1  # Ultimate fallback
             else:
-                # Unknown song - keep in current set
-                current_set = last_known_set
+                # Unknown song (not extra, not in setlist) - use previous song's set
+                disc_number = self._find_prev_song_set(track_info, i, song_to_set)
+                if disc_number is None:
+                    disc_number = 1
             
             assignments.append(TrackAssignment(
-                file_path=file_path,
-                disc_number=current_set,
+                file_path=info['file_path'],
+                disc_number=disc_number,
                 track_number=0,  # Will be assigned later
-                title=matched_title or raw_title,
-                is_extra=is_extra,
-                matched_song=result.matched_title
+                title=info['matched_title'] or info['raw_title'],
+                is_extra=info['is_extra'],
+                matched_song=info['matched_song']
             ))
         
         # Renumber tracks within each disc
         assignments = self._renumber_tracks(assignments)
         
         return assignments
+    
+    def _find_next_song_set(self, track_info: List[Dict], current_idx: int,
+                            song_to_set: Dict[str, int]) -> Optional[int]:
+        """
+        Look ahead to find the next real song's set.
+        
+        Args:
+            track_info: List of track info dicts
+            current_idx: Current position in the list
+            song_to_set: Mapping of song names to set numbers
+            
+        Returns:
+            Set number of next real song, or None if not found
+        """
+        for i in range(current_idx + 1, len(track_info)):
+            if track_info[i]['song_set'] is not None:
+                return track_info[i]['song_set']
+        return None
+    
+    def _find_prev_song_set(self, track_info: List[Dict], current_idx: int,
+                            song_to_set: Dict[str, int]) -> Optional[int]:
+        """
+        Look back to find the previous real song's set.
+        
+        Args:
+            track_info: List of track info dicts
+            current_idx: Current position in the list
+            song_to_set: Mapping of song names to set numbers
+            
+        Returns:
+            Set number of previous real song, or None if not found
+        """
+        for i in range(current_idx - 1, -1, -1):
+            if track_info[i]['song_set'] is not None:
+                return track_info[i]['song_set']
+        return None
     
     def _assign_single_disc(self, files: List[Path]) -> List[TrackAssignment]:
         """Fallback: assign all files to disc 1."""
