@@ -247,19 +247,27 @@ class SetTagger:
         return assignments
     
     def _renumber_tracks(self, assignments: List[TrackAssignment]) -> List[TrackAssignment]:
-        """Renumber tracks sequentially within each disc."""
-        # Group by disc
-        disc_tracks: Dict[int, List[TrackAssignment]] = {}
+        """
+        Renumber tracks sequentially within each disc while preserving file order.
         
+        The assignments list is assumed to be in physical file order. This method
+        assigns track numbers within each disc based on that order, ensuring that
+        files maintain their physical sequence.
+        """
+        # Track the next track number for each disc
+        disc_track_numbers: Dict[int, int] = {}
+        
+        # Process in the order given (which should be file order)
         for assign in assignments:
-            if assign.disc_number not in disc_tracks:
-                disc_tracks[assign.disc_number] = []
-            disc_tracks[assign.disc_number].append(assign)
-        
-        # Renumber within each disc
-        for disc_num, tracks in disc_tracks.items():
-            for i, track in enumerate(tracks, 1):
-                track.track_number = i
+            disc_num = assign.disc_number
+            
+            # Initialize or increment track number for this disc
+            if disc_num not in disc_track_numbers:
+                disc_track_numbers[disc_num] = 1
+            else:
+                disc_track_numbers[disc_num] += 1
+            
+            assign.track_number = disc_track_numbers[disc_num]
         
         return assignments
     

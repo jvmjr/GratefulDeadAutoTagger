@@ -28,7 +28,7 @@ from mutagen.flac import FLAC
 
 from config import (
     ensure_dirs, DEFAULT_DB_PATH, REVIEW_MATCHES_PATH, 
-    UNMATCHED_SONGS_PATH, SEGUE_LOG_PATH, LOGS_DIR
+    UNMATCHED_SONGS_PATH, SEGUE_LOG_PATH, LOGS_DIR, AUTO_APPLY_THRESHOLD
 )
 from song_matcher import SongMatcher, MatchResult, get_final_title
 from album_tagger import AlbumTagger, AlbumInfo
@@ -66,7 +66,8 @@ class AutoTagger:
     """
     
     def __init__(self, db_path: Path = DEFAULT_DB_PATH, trial_mode: bool = False,
-                 artwork_dir: Optional[Path] = None, artwork_primary: bool = False):
+                 artwork_dir: Optional[Path] = None, artwork_primary: bool = False,
+                 trust_txt: bool = False):
         """
         Initialize the auto-tagger.
         
@@ -75,11 +76,13 @@ class AutoTagger:
             trial_mode: If True, preview changes without writing
             artwork_dir: Optional directory to search for artwork
             artwork_primary: If True, artwork_dir is searched before parent folder
+            trust_txt: If True, prioritize txt file over existing FLAC tags
         """
         self.db_path = db_path
         self.trial_mode = trial_mode
         self.artwork_dir = artwork_dir
         self.artwork_primary = artwork_primary
+        self.trust_txt = trust_txt
         
         self.matcher = SongMatcher(db_path)
         self.album_tagger = AlbumTagger(db_path)
@@ -89,6 +92,7 @@ class AutoTagger:
         self.review_matches: List[Dict] = []
         self.unmatched_songs: List[Dict] = []
         self.segue_discrepancies: List[Dict] = []
+        self.duplicate_warnings: List[Dict] = []
         self.processed_count = 0
         self.skipped_count = 0
         self.artwork_copied = 0
@@ -147,6 +151,15 @@ class AutoTagger:
         
         # Get song mappings from txt file (for files with missing/generic titles)
         txt_mappings = self.txt_parser.get_all_songs_from_folder(folder_path)
+        
+        # Validate: check if txt file track count matches FLAC file count
+        if txt_mappings and self.trust_txt:
+            should_skip = self._validate_txt_file_coverage(flac_files, txt_mappings, 
+                                                           folder_name, setlist)
+            if should_skip:
+                print(f"  ⛔ SKIPPING FOLDER - txt file mismatch detected")
+                print(f"  → Fix the txt file or run without --trust-txt flag")
+                return []
         
         # Process each file
         updates = []
@@ -247,6 +260,9 @@ class AutoTagger:
                     'cleaned_title': result.cleaned_title
                 })
         
+        # Check for unexpected duplicate titles
+        self._check_for_duplicate_titles(updates, setlist, txt_mappings, folder_name)
+        
         return updates
     
     def _process_file(self, flac_file: Path, txt_mappings: Dict[str, str], 
@@ -257,6 +273,15 @@ class AutoTagger:
         Cross-validates against the show's setlist from JerryBase. If the existing
         tag doesn't match a song in this show's setlist, checks the txt file.
         Uses JerryBase canonical naming.
+        
+        Priority order (when trust_txt=True):
+        1. Txt file (if available)
+        2. Existing FLAC tag
+        
+        Priority order (when trust_txt=False, default):
+        1. High-confidence existing FLAC tag match (>= 85%)
+        2. Txt file (if available and existing tag is low confidence or suspicious)
+        3. Existing FLAC tag (any confidence)
         """
         try:
             audio = FLAC(str(flac_file))
@@ -271,14 +296,82 @@ class AutoTagger:
             for song in setlist:
                 setlist_songs[song['song_name'].lower()] = song['song_name']
         
-        # First, try to match the existing tag against this show's setlist
+        # If trust_txt flag is set, prioritize txt file
+        if self.trust_txt:
+            txt_title = txt_mappings.get(flac_file.name)
+            if txt_title:
+                txt_result = self.matcher.match(txt_title)
+                txt_matched_lower = txt_result.matched_title.lower() if txt_result.matched_title else ''
+                
+                # Check if txt file's match is in the setlist
+                if txt_matched_lower in setlist_songs:
+                    return MatchResult(
+                        original_title=raw_title,  # Keep original for reference
+                        cleaned_title=txt_result.cleaned_title,
+                        matched_title=setlist_songs[txt_matched_lower],
+                        confidence=txt_result.confidence,
+                        match_source='txt_setlist',
+                        has_segue=txt_result.has_segue,
+                        needs_review=False
+                    )
+                # Even if not in setlist, use txt result
+                return txt_result
+            else:
+                # trust_txt is enabled but file has NO txt mapping
+                # Mark as unmatched to prevent using potentially wrong existing tags
+                return MatchResult(
+                    original_title=raw_title,
+                    cleaned_title=raw_title,
+                    matched_title=None,
+                    confidence=0,
+                    match_source='no_txt_mapping',
+                    has_segue=False,
+                    needs_review=True
+                )
+        
+        # Standard logic: try existing tag first
         if raw_title and setlist_songs:
             result = self.matcher.match(raw_title)
             matched_lower = result.matched_title.lower() if result.matched_title else ''
             
+            # Detect suspicious tags that should prefer txt file
+            is_suspicious = (
+                raw_title.count('>') > 2 or  # Multiple segues suggests compound title
+                ('jam' in raw_title.lower() and len(raw_title) > 40) or  # Long jam description
+                result.needs_review  # Low confidence match
+            )
+            
             # Check if the matched song is in this show's setlist
             if matched_lower in setlist_songs:
-                # Use the JerryBase canonical name from the setlist
+                # Only trust high-confidence matches or non-suspicious tags
+                if result.confidence >= AUTO_APPLY_THRESHOLD or not is_suspicious:
+                    # Use the JerryBase canonical name from the setlist
+                    return MatchResult(
+                        original_title=result.original_title,
+                        cleaned_title=result.cleaned_title,
+                        matched_title=setlist_songs[matched_lower],
+                        confidence=result.confidence,
+                        match_source=result.match_source,
+                        has_segue=result.has_segue,
+                        needs_review=result.needs_review
+                    )
+                # Low confidence or suspicious - check txt file first
+                txt_title = txt_mappings.get(flac_file.name)
+                if txt_title:
+                    txt_result = self.matcher.match(txt_title)
+                    txt_matched_lower = txt_result.matched_title.lower() if txt_result.matched_title else ''
+                    
+                    if txt_matched_lower in setlist_songs:
+                        return MatchResult(
+                            original_title=raw_title,
+                            cleaned_title=txt_result.cleaned_title,
+                            matched_title=setlist_songs[txt_matched_lower],
+                            confidence=txt_result.confidence,
+                            match_source='txt_setlist',
+                            has_segue=txt_result.has_segue,
+                            needs_review=False
+                        )
+                # No txt file or txt doesn't match - use original low-confidence result
                 return MatchResult(
                     original_title=result.original_title,
                     cleaned_title=result.cleaned_title,
@@ -375,6 +468,136 @@ class AutoTagger:
         print(f"    TRACK: {update.track_number}/{update.track_total}")
         print(f"    Match: {update.match_source}" + (" [REVIEW]" if update.needs_review else ""))
     
+    def _check_for_duplicate_titles(self, updates: List[FileTagUpdate], 
+                                     setlist: List[Dict], txt_mappings: Dict[str, str],
+                                     folder_name: str):
+        """
+        Check for unexpected duplicate song titles.
+        
+        Only warns if duplicates appear that are NOT in the JerryBase setlist
+        or txt file. Legitimate duplicates (like 'Dark Star >' and 'Dark Star')
+        are expected and not flagged.
+        
+        Args:
+            updates: List of file tag updates
+            setlist: JerryBase setlist for this show
+            txt_mappings: Txt file mappings
+            folder_name: Name of the show folder
+        """
+        # Count occurrences of each title (without segue marker for comparison)
+        title_counts = {}
+        title_files = {}
+        for update in updates:
+            # Normalize title by removing segue marker for counting
+            base_title = update.title.rstrip(' >').strip()
+            if base_title not in title_counts:
+                title_counts[base_title] = 0
+                title_files[base_title] = []
+            title_counts[base_title] += 1
+            title_files[base_title].append(update.file_path.name)
+        
+        # Get expected duplicates from setlist
+        setlist_counts = {}
+        if setlist:
+            for song in setlist:
+                base_song = song['song_name'].rstrip(' >').strip()
+                setlist_counts[base_song] = setlist_counts.get(base_song, 0) + 1
+        
+        # Get expected duplicates from txt file
+        txt_counts = {}
+        for txt_title in txt_mappings.values():
+            # Clean and normalize txt title
+            base_txt = txt_title.rstrip(' >').strip()
+            txt_counts[base_txt] = txt_counts.get(base_txt, 0) + 1
+        
+        # Check for unexpected duplicates
+        for title, count in title_counts.items():
+            if count > 1:
+                # Check if this duplicate is expected
+                expected_in_setlist = setlist_counts.get(title, 0) >= count
+                expected_in_txt = txt_counts.get(title, 0) >= count
+                
+                if not expected_in_setlist and not expected_in_txt:
+                    # This is an unexpected duplicate!
+                    self.duplicate_warnings.append({
+                        'folder': folder_name,
+                        'song': title,
+                        'count': count,
+                        'files': title_files[title],
+                        'setlist_count': setlist_counts.get(title, 0),
+                        'txt_count': txt_counts.get(title, 0)
+                    })
+                    print(f"  WARNING: Unexpected duplicate song '{title}' appears {count} times")
+                    print(f"    Expected in setlist: {setlist_counts.get(title, 0)} times")
+                    print(f"    Expected in txt: {txt_counts.get(title, 0)} times")
+                    print(f"    Files: {', '.join(title_files[title])}")
+    
+    def _validate_txt_file_coverage(self, flac_files: List[Path], 
+                                      txt_mappings: Dict[str, str], folder_name: str,
+                                      setlist: List[Dict] = None) -> bool:
+        """
+        Validate that txt file has mappings for all FLAC files.
+        
+        When --trust-txt is enabled, checks if the number of txt mappings
+        matches the number of FLAC files. If not, the folder should be skipped
+        to prevent cascading errors from incorrect mappings.
+        
+        Exception: If FLAC count exactly matches JerryBase setlist count,
+        allow processing but still warn (could tag from JerryBase instead).
+        
+        Args:
+            flac_files: List of FLAC files in the folder
+            txt_mappings: Dict of filename -> song title from txt file
+            folder_name: Name of the folder being processed
+            setlist: JerryBase setlist for this show (if available)
+            
+        Returns:
+            True if folder should be skipped, False if processing can continue
+        """
+        num_flac_files = len(flac_files)
+        num_txt_mappings = len(txt_mappings)
+        
+        if num_flac_files == num_txt_mappings:
+            # Perfect match - no issues
+            return False
+        
+        # Mismatch detected
+        print(f"  ⚠️  WARNING: Txt file track count mismatch!")
+        print(f"    FLAC files in folder: {num_flac_files}")
+        print(f"    Txt file mappings: {num_txt_mappings}")
+        print(f"    Difference: {abs(num_flac_files - num_txt_mappings)} file(s)")
+        
+        # Find which files are missing txt mappings
+        unmapped_files = [f.name for f in flac_files if f.name not in txt_mappings]
+        if unmapped_files:
+            print(f"    Files without txt mappings: {', '.join(unmapped_files)}")
+        
+        # Find txt mappings that don't have corresponding files
+        missing_files = [fname for fname in txt_mappings.keys() 
+                       if not any(f.name == fname for f in flac_files)]
+        if missing_files:
+            print(f"    Txt mappings without files: {', '.join(missing_files)}")
+        
+        print(f"    → This may indicate:")
+        print(f"       - Missing tracks in txt file (extra songs, jam segments)")
+        print(f"       - Txt file is for a different version/retracking")
+        print(f"       - Numbering mismatch causing offset errors")
+        
+        # Check exception: does FLAC count match JerryBase setlist count?
+        if setlist and len(setlist) == num_flac_files:
+            print(f"    ⚠️  EXCEPTION: FLAC count ({num_flac_files}) matches JerryBase setlist count ({len(setlist)})")
+            print(f"    → Allowing processing - will use JerryBase for matching")
+            print(f"    → CAUTION: This match could be coincidental - please review results!")
+            return False  # Don't skip - allow processing with JerryBase
+        
+        # No exception applies - must skip
+        print(f"    ⛔ RESULT: Folder will be SKIPPED with --trust-txt enabled")
+        print(f"    → Txt file mappings cannot be trusted")
+        print(f"    → Incorrect mappings would cause cascading tagging errors")
+        print(f"    → Fix txt file or run without --trust-txt to use fuzzy matching")
+        
+        return True  # Skip this folder
+    
     def _process_artwork(self, folder_path: Path):
         """Process artwork for a show folder."""
         status = process_folder_artwork(folder_path, self.artwork_dir, self.trial_mode,
@@ -469,6 +692,7 @@ class AutoTagger:
         print(f"Matches needing review: {len(self.review_matches)}")
         print(f"Unmatched songs: {len(self.unmatched_songs)}")
         print(f"Segue discrepancies: {len(self.segue_discrepancies)}")
+        print(f"Duplicate warnings: {len(self.duplicate_warnings)}")
         print(f"Artwork copied: {self.artwork_copied}")
         print(f"Artwork not found: {self.artwork_not_found}")
 
@@ -493,6 +717,9 @@ Examples:
 
   Include artwork copying:
     python tagger.py /path/to/shows --artwork-dir /path/to/covers
+
+  Trust txt file over existing FLAC tags (for retracked shows):
+    python tagger.py /path/to/shows --trust-txt
         """
     )
     
@@ -512,6 +739,9 @@ Examples:
     parser.add_argument('--artwork-primary', action='store_true',
                         help='Use --artwork-dir as primary source (before parent folder). '
                              'Default is to use parent folder first, --artwork-dir as backup.')
+    parser.add_argument('--trust-txt', action='store_true',
+                        help='Prioritize txt file over existing FLAC tags. Use for retracked '
+                             'shows where txt file is the source of truth.')
     
     args = parser.parse_args()
     
@@ -529,13 +759,14 @@ Examples:
     print(f"Mode: {'Grateful Dead' if args.gd else 'Jerry Garcia'}")
     print(f"Database: {args.db}")
     print(f"Trial mode: {args.trial}")
+    print(f"Trust txt file: {args.trust_txt}")
     if args.artwork_dir:
         priority = "primary" if args.artwork_primary else "backup"
         print(f"Artwork directory: {args.artwork_dir} ({priority})")
     print(f"{'='*60}")
     
     tagger = AutoTagger(db_path=args.db, trial_mode=args.trial, artwork_dir=args.artwork_dir,
-                        artwork_primary=args.artwork_primary)
+                        artwork_primary=args.artwork_primary, trust_txt=args.trust_txt)
     tagger.process_directory(args.path, is_gd=args.gd, num_pad_chars=args.pad,
                              recursive=not args.no_recursive)
     tagger.save_review_files()

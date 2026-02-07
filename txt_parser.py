@@ -99,6 +99,10 @@ class TxtParser:
         """
         Parse a .txt file to extract track-to-song mappings.
         
+        Handles both sequential track numbering (01-99) and per-disc track
+        numbering (Disc 1: 01-14, Disc 2: 01-09, etc.). Creates disc-specific
+        mappings (d1t01, d2t01, etc.) when disc boundaries are detected.
+        
         Args:
             txt_path: Path to the txt file
         
@@ -115,7 +119,7 @@ class TxtParser:
             print(f"Warning: Could not read {txt_path}: {e}")
             return mappings
         
-        # Try each pattern
+        # Try pattern-based matching first (for explicit d1t01 format)
         for pattern in self.track_patterns:
             matches = pattern.findall(content)
             
@@ -125,53 +129,70 @@ class TxtParser:
                         disc, track, song = match
                         key = f"d{disc}t{track.zfill(2)}"
                         mappings[key] = song.strip()
-                    elif len(match) == 2:  # Simple track pattern
-                        track, song = match
-                        # Store with various key formats
-                        key_num = track.zfill(2)
-                        mappings[key_num] = song.strip()
-                        mappings[f"t{key_num}"] = song.strip()
         
-        # Also parse line-by-line for simple formats
+        # Parse line-by-line to handle disc boundaries and track numbering
         lines = content.split('\n')
+        current_disc = None  # Track which physical disc we're parsing
         in_tracklist = False
         track_num = 0
         
         for line in lines:
-            line = line.strip()
+            line_stripped = line.strip()
+            
+            # Detect disc boundaries (e.g., "Disc 1", "Disc 2.", "Disc 3:", etc.)
+            disc_match = re.match(r'^disc\s*(\d+)', line_stripped, re.IGNORECASE)
+            if disc_match:
+                current_disc = int(disc_match.group(1))
+                in_tracklist = True
+                continue
             
             # Skip empty lines and common headers
-            if not line or line.lower().startswith(('set', 'encore', '---', '===')):
-                if 'set' in line.lower() or 'encore' in line.lower():
+            if not line_stripped or line_stripped.lower().startswith(('set', 'encore', '---', '===')):
+                if 'set' in line_stripped.lower() or 'encore' in line_stripped.lower():
                     in_tracklist = True
                 continue
             
             # Look for numbered lines
             # Standard: "01. Song" or "01) Song"
-            match = re.match(r'^(\d{1,2})[.\)]\s*(.+)', line)
+            match = re.match(r'^(\d{1,2})[.\)]\s*(.+)', line_stripped)
             
-            # Fallback: "01 Song" (single space) — only inside a set/encore
-            # section to avoid matching technical metadata in headers
+            # Fallback: "01 Song" (single space) — only inside a tracklist section
             if not match and in_tracklist:
-                match = re.match(r'^(\d{1,2})\s+([A-Za-z/].+)', line)
+                match = re.match(r'^(\d{1,2})\s+([A-Za-z/].+)', line_stripped)
             
             if match:
                 track_num = int(match.group(1))
                 song = match.group(2).strip()
+                
                 # Skip lines that are filenames or contain hashes (FFP section)
                 if '.flac' in song.lower() or '.shn' in song.lower():
                     continue
                 if re.search(r':[a-f0-9]{32}', song):
                     continue
-                # Remove common suffixes
+                
+                # Remove common suffixes like timing info in brackets
                 song = re.sub(r'\s*[\[\(][^\]\)]*[\]\)]$', '', song)
-                mappings[str(track_num).zfill(2)] = song
+                
+                # Create mappings based on whether we're in a disc section
+                if current_disc is not None:
+                    # Create disc-specific mapping (e.g., d1t01, d2t01, d3t01)
+                    disc_key = f"d{current_disc}t{str(track_num).zfill(2)}"
+                    mappings[disc_key] = song
+                    # Also create t01, t02 format for compatibility
+                    mappings[f"t{str(track_num).zfill(2)}"] = song
+                else:
+                    # No disc context - create simple numeric mappings
+                    mappings[str(track_num).zfill(2)] = song
+                    mappings[f"t{str(track_num).zfill(2)}"] = song
         
         return mappings
     
     def get_song_for_filename(self, filename: str, txt_path: Path) -> Optional[str]:
         """
         Get song name for a specific file based on the .txt file.
+        
+        When the txt file has disc-specific structure (d1t01, d2t01, etc.),
+        only disc-specific matches are returned to avoid cross-disc contamination.
         
         Args:
             filename: Name of the FLAC file (e.g., "gd1977-05-08d1t03.flac")
@@ -185,17 +206,25 @@ class TxtParser:
         if not mappings:
             return None
         
+        # Check if txt file has disc-specific structure
+        has_disc_structure = any(key.startswith('d') and 't' in key for key in mappings.keys())
+        
         # Extract track identifier from filename
         # Pattern: d#t##, d#t#, t##, t#, or just ##
         
-        # Try d#t## pattern
+        # Try d#t## pattern (disc-specific)
         match = re.search(r'd(\d+)t(\d+)', filename, re.IGNORECASE)
         if match:
             key = f"d{match.group(1)}t{match.group(2).zfill(2)}"
             if key in mappings:
                 return mappings[key]
+            
+            # If txt has disc structure but this disc/track combo isn't found,
+            # don't fall back to generic patterns (would cause cross-disc matches)
+            if has_disc_structure:
+                return None
         
-        # Try t## pattern
+        # Try t## pattern (only if no disc structure or filename doesn't have disc prefix)
         match = re.search(r't(\d+)', filename, re.IGNORECASE)
         if match:
             key = f"t{match.group(1).zfill(2)}"
