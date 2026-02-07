@@ -23,6 +23,7 @@ CORRECTIONS_MAP_PATH = AUTO_TAGGER_DIR / "corrections_map.csv"
 EXTRA_SONGS_PATH = AUTO_TAGGER_DIR / "extra_songs.csv"
 REVIEW_MATCHES_PATH = AUTO_TAGGER_DIR / "review_matches.csv"
 UNMATCHED_SONGS_PATH = LOGS_DIR / "unmatched_songs.txt"
+SEGUE_LOG_PATH = LOGS_DIR / "segue_discrepancies.log"
 
 # Fuzzy matching thresholds
 AUTO_APPLY_THRESHOLD = 85  # Auto-apply matches at or above this confidence

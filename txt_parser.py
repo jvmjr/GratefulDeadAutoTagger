@@ -18,6 +18,13 @@ import re
 from pathlib import Path
 from typing import Optional, Dict, List
 
+# Word-boundary patterns for short tokens that could appear as substrings of
+# legitimate content (e.g. "flac24" must not match "flac2496").
+_SKIP_WORD_RES = [
+    re.compile(r'\b' + p + r'\b', re.IGNORECASE)
+    for p in ('ffp', 'md5', 'sha256', 'sha1', 'flac16', 'flac24')
+]
+
 
 class TxtParser:
     """
@@ -66,9 +73,13 @@ class TxtParser:
             return None
         
         # Skip fingerprint/checksum/technical files
-        skip_patterns = ['fingerprint', 'ffp', 'md5', 'sha', 'checksum', 
-                        'flac16', 'flac24', 'shntool', 'shninfo']
-        txt_files = [f for f in txt_files if not any(p in f.name.lower() for p in skip_patterns)]
+        skip_substr = ['fingerprint', 'checksum', 'shntool', 'shninfo']
+        txt_files = [
+            f for f in txt_files
+            if not any(p in f.name.lower() for p in skip_substr)
+            and not f.name.lower().endswith(('.ffp', '.md5', '.sha', '.sha1', '.sha256'))
+            and not any(pat.search(f.name) for pat in _SKIP_WORD_RES)
+        ]
         
         if not txt_files:
             return None
@@ -136,10 +147,22 @@ class TxtParser:
                 continue
             
             # Look for numbered lines
+            # Standard: "01. Song" or "01) Song"
             match = re.match(r'^(\d{1,2})[.\)]\s*(.+)', line)
+            
+            # Fallback: "01 Song" (single space) — only inside a set/encore
+            # section to avoid matching technical metadata in headers
+            if not match and in_tracklist:
+                match = re.match(r'^(\d{1,2})\s+([A-Za-z/].+)', line)
+            
             if match:
                 track_num = int(match.group(1))
                 song = match.group(2).strip()
+                # Skip lines that are filenames or contain hashes (FFP section)
+                if '.flac' in song.lower() or '.shn' in song.lower():
+                    continue
+                if re.search(r':[a-f0-9]{32}', song):
+                    continue
                 # Remove common suffixes
                 song = re.sub(r'\s*[\[\(][^\]\)]*[\]\)]$', '', song)
                 mappings[str(track_num).zfill(2)] = song
@@ -179,6 +202,13 @@ class TxtParser:
             if key in mappings:
                 return mappings[key]
             # Also try just the number
+            key = match.group(1).zfill(2)
+            if key in mappings:
+                return mappings[key]
+        
+        # Try leading number: "01 Song Name.flac" or "01. Song.flac"
+        match = re.match(r'^(\d{1,2})\s', filename)
+        if match:
             key = match.group(1).zfill(2)
             if key in mappings:
                 return mappings[key]

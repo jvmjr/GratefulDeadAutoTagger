@@ -28,7 +28,7 @@ from mutagen.flac import FLAC
 
 from config import (
     ensure_dirs, DEFAULT_DB_PATH, REVIEW_MATCHES_PATH, 
-    UNMATCHED_SONGS_PATH, LOGS_DIR
+    UNMATCHED_SONGS_PATH, SEGUE_LOG_PATH, LOGS_DIR
 )
 from song_matcher import SongMatcher, MatchResult, get_final_title
 from album_tagger import AlbumTagger, AlbumInfo
@@ -88,6 +88,7 @@ class AutoTagger:
         
         self.review_matches: List[Dict] = []
         self.unmatched_songs: List[Dict] = []
+        self.segue_discrepancies: List[Dict] = []
         self.processed_count = 0
         self.skipped_count = 0
         self.artwork_copied = 0
@@ -154,6 +155,43 @@ class AutoTagger:
         for flac_file in flac_files:
             result = self._process_file(flac_file, txt_mappings, setlist)
             file_results.append(result)
+        
+        # Merge segue info from JerryBase and txt file.
+        # If EITHER source indicates a segue, we apply it.
+        # Discrepancies are logged but neither source is altered.
+        db_segues = {s['song_name'].lower(): s['segue'] for s in setlist}
+        
+        for flac_file, result in zip(flac_files, file_results):
+            if not result.matched_title:
+                continue
+            
+            # JerryBase segue flag
+            db_segue = db_segues.get(result.matched_title.lower(), False)
+            
+            # Txt file segue marker (parse from raw txt title if available)
+            txt_segue = False
+            txt_title_raw = txt_mappings.get(flac_file.name)
+            if txt_title_raw:
+                _, txt_segue = self.matcher.clean_title(txt_title_raw)
+            
+            # Segue already detected from the FLAC tag itself
+            tag_segue = result.has_segue
+            
+            # OR logic: apply segue if any source says so
+            final_segue = db_segue or tag_segue or txt_segue
+            
+            # Log discrepancy when sources disagree
+            if db_segue != txt_segue and txt_title_raw is not None:
+                self.segue_discrepancies.append({
+                    'file_path': str(flac_file),
+                    'song': result.matched_title,
+                    'db_segue': db_segue,
+                    'txt_segue': txt_segue,
+                    'tag_segue': tag_segue,
+                    'applied': final_segue,
+                })
+            
+            result.has_segue = final_segue
         
         # Assign discs based on setlist
         assignments = self.set_tagger.assign_discs(flac_files, setlist, set_info)
@@ -402,6 +440,20 @@ class AutoTagger:
                 for item in self.unmatched_songs:
                     f.write(f"{item['file_path']}|{item['original_title']}|{item['cleaned_title']}\n")
             print(f"Wrote {len(self.unmatched_songs)} unmatched songs to {UNMATCHED_SONGS_PATH}")
+        
+        if self.segue_discrepancies:
+            with open(SEGUE_LOG_PATH, 'w', encoding='utf-8') as f:
+                f.write("Segue Discrepancies (JerryBase vs txt file)\n")
+                f.write("=" * 60 + "\n")
+                f.write("Segue applied if EITHER source indicates one.\n\n")
+                for item in self.segue_discrepancies:
+                    db_flag = '>' if item['db_segue'] else '(none)'
+                    txt_flag = '>' if item['txt_segue'] else '(none)'
+                    applied = '> applied' if item['applied'] else 'no segue'
+                    f.write(f"{item['song']}\n")
+                    f.write(f"  File:     {item['file_path']}\n")
+                    f.write(f"  JerryBase: {db_flag}  |  Txt file: {txt_flag}  |  Result: {applied}\n\n")
+            print(f"Wrote {len(self.segue_discrepancies)} segue discrepancies to {SEGUE_LOG_PATH}")
     
     def print_summary(self):
         """Print processing summary."""
@@ -416,6 +468,7 @@ class AutoTagger:
         
         print(f"Matches needing review: {len(self.review_matches)}")
         print(f"Unmatched songs: {len(self.unmatched_songs)}")
+        print(f"Segue discrepancies: {len(self.segue_discrepancies)}")
         print(f"Artwork copied: {self.artwork_copied}")
         print(f"Artwork not found: {self.artwork_not_found}")
 
