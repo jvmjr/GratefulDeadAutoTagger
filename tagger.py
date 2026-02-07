@@ -20,6 +20,7 @@ Usage:
 
 import argparse
 import csv
+from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Optional
 from dataclasses import dataclass
@@ -647,25 +648,42 @@ class AutoTagger:
                         self.process_directory(subdir, is_gd, num_pad_chars, recursive)
     
     def save_review_files(self):
-        """Save review and unmatched files."""
+        """Save review and unmatched files with timestamps."""
         ensure_dirs()
         
+        # Generate timestamp for log files
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
         if self.review_matches:
+            # Save working copy (no timestamp) for apply_reviewed.py
             with open(REVIEW_MATCHES_PATH, 'w', newline='', encoding='utf-8') as f:
                 writer = csv.DictWriter(f, fieldnames=['file_path', 'original_title', 
                                                        'suggested_match', 'confidence', 'action'])
                 writer.writeheader()
                 writer.writerows(self.review_matches)
             print(f"\nWrote {len(self.review_matches)} matches for review to {REVIEW_MATCHES_PATH}")
+            
+            # Save timestamped copy for record keeping
+            timestamped_review_path = LOGS_DIR / f"review_matches_{timestamp}.csv"
+            with open(timestamped_review_path, 'w', newline='', encoding='utf-8') as f:
+                writer = csv.DictWriter(f, fieldnames=['file_path', 'original_title', 
+                                                       'suggested_match', 'confidence', 'action'])
+                writer.writeheader()
+                writer.writerows(self.review_matches)
+            print(f"Wrote timestamped copy to {timestamped_review_path}")
         
         if self.unmatched_songs:
-            with open(UNMATCHED_SONGS_PATH, 'w', encoding='utf-8') as f:
+            # Save with timestamp
+            timestamped_unmatched_path = LOGS_DIR / f"unmatched_songs_{timestamp}.txt"
+            with open(timestamped_unmatched_path, 'w', encoding='utf-8') as f:
                 for item in self.unmatched_songs:
                     f.write(f"{item['file_path']}|{item['original_title']}|{item['cleaned_title']}\n")
-            print(f"Wrote {len(self.unmatched_songs)} unmatched songs to {UNMATCHED_SONGS_PATH}")
+            print(f"Wrote {len(self.unmatched_songs)} unmatched songs to {timestamped_unmatched_path}")
         
         if self.segue_discrepancies:
-            with open(SEGUE_LOG_PATH, 'w', encoding='utf-8') as f:
+            # Save with timestamp
+            timestamped_segue_path = LOGS_DIR / f"segue_discrepancies_{timestamp}.log"
+            with open(timestamped_segue_path, 'w', encoding='utf-8') as f:
                 f.write("Segue Discrepancies (JerryBase vs txt file)\n")
                 f.write("=" * 60 + "\n")
                 f.write("Segue applied if EITHER source indicates one.\n\n")
@@ -676,7 +694,7 @@ class AutoTagger:
                     f.write(f"{item['song']}\n")
                     f.write(f"  File:     {item['file_path']}\n")
                     f.write(f"  JerryBase: {db_flag}  |  Txt file: {txt_flag}  |  Result: {applied}\n\n")
-            print(f"Wrote {len(self.segue_discrepancies)} segue discrepancies to {SEGUE_LOG_PATH}")
+            print(f"Wrote {len(self.segue_discrepancies)} segue discrepancies to {timestamped_segue_path}")
     
     def print_summary(self):
         """Print processing summary."""
