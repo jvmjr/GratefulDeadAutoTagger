@@ -70,7 +70,7 @@ class SetTagger:
         return None
     
     def assign_discs(self, files: List[Path], setlist: List[Dict], 
-                     set_info: List[Dict]) -> List[TrackAssignment]:
+                     set_info: List[Dict], match_results: List = None) -> List[TrackAssignment]:
         """
         Assign disc numbers to files based on setlist.
         
@@ -78,13 +78,15 @@ class SetTagger:
             files: List of FLAC file paths in the show folder (sorted)
             setlist: List of song dicts from matcher.get_songs_for_date()
             set_info: List of set dicts from matcher.get_set_info_for_date()
+            match_results: Optional pre-matched results from tagger._process_file()
+                          If provided, uses these instead of doing its own matching
             
         Returns:
             List of TrackAssignment objects
         """
         if not set_info:
             # No setlist - fall back to single disc
-            return self._assign_single_disc(files)
+            return self._assign_single_disc(files, match_results)
         
         # Build set structure
         num_sets = len(set_info)
@@ -106,20 +108,24 @@ class SetTagger:
         
         # First pass: gather all track info and identify real songs vs extras
         track_info = []
-        for file_path in files:
-            # Get title from file
-            try:
-                audio = FLAC(str(file_path))
-                raw_title = audio.get('TITLE', [''])[0] if audio.get('TITLE') else ''
-            except:
-                raw_title = ''
-            
-            # Match the title
-            result = self.matcher.match(raw_title)
-            matched_title = result.matched_title if result.matched_title else result.cleaned_title
-            
-            # Determine if this is an extra track
-            is_extra = is_extra_track(raw_title) or result.match_source == 'extra'
+        for i, file_path in enumerate(files):
+            # Use pre-matched results if available, otherwise do our own matching
+            if match_results and i < len(match_results):
+                result = match_results[i]
+                matched_title = result.matched_title if result.matched_title else result.cleaned_title
+                raw_title = result.original_title
+                is_extra = result.match_source == 'extra'
+            else:
+                # Fallback: read from file and match
+                try:
+                    audio = FLAC(str(file_path))
+                    raw_title = audio.get('TITLE', [''])[0] if audio.get('TITLE') else ''
+                except:
+                    raw_title = ''
+                
+                result = self.matcher.match(raw_title)
+                matched_title = result.matched_title if result.matched_title else result.cleaned_title
+                is_extra = is_extra_track(raw_title) or result.match_source == 'extra'
             
             # Find which set this song belongs to (None for extras/unknowns)
             song_set = None
@@ -132,7 +138,7 @@ class SetTagger:
                 'raw_title': raw_title,
                 'is_extra': is_extra,
                 'song_set': song_set,
-                'matched_song': result.matched_title
+                'matched_song': result.matched_title if hasattr(result, 'matched_title') else matched_title
             })
         
         # Second pass: assign disc numbers
@@ -207,27 +213,35 @@ class SetTagger:
                 return track_info[i]['song_set']
         return None
     
-    def _assign_single_disc(self, files: List[Path]) -> List[TrackAssignment]:
+    def _assign_single_disc(self, files: List[Path], match_results: List = None) -> List[TrackAssignment]:
         """Fallback: assign all files to disc 1."""
         assignments = []
         
         for i, file_path in enumerate(files, 1):
-            try:
-                audio = FLAC(str(file_path))
-                raw_title = audio.get('TITLE', [''])[0] if audio.get('TITLE') else ''
-            except:
-                raw_title = ''
-            
-            result = self.matcher.match(raw_title)
-            matched_title = result.matched_title if result.matched_title else result.cleaned_title
+            # Use pre-matched results if available
+            if match_results and (i-1) < len(match_results):
+                result = match_results[i-1]
+                matched_title = result.matched_title if result.matched_title else result.cleaned_title
+                raw_title = result.original_title
+                is_extra = result.match_source == 'extra'
+            else:
+                try:
+                    audio = FLAC(str(file_path))
+                    raw_title = audio.get('TITLE', [''])[0] if audio.get('TITLE') else ''
+                except:
+                    raw_title = ''
+                
+                result = self.matcher.match(raw_title)
+                matched_title = result.matched_title if result.matched_title else result.cleaned_title
+                is_extra = is_extra_track(raw_title)
             
             assignments.append(TrackAssignment(
                 file_path=file_path,
                 disc_number=1,
                 track_number=i,
                 title=matched_title or raw_title,
-                is_extra=is_extra_track(raw_title),
-                matched_song=result.matched_title
+                is_extra=is_extra,
+                matched_song=result.matched_title if hasattr(result, 'matched_title') else matched_title
             ))
         
         return assignments

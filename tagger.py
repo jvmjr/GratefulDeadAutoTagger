@@ -193,8 +193,8 @@ class AutoTagger:
             
             result.has_segue = final_segue
         
-        # Assign discs based on setlist
-        assignments = self.set_tagger.assign_discs(flac_files, setlist, set_info)
+        # Assign discs based on setlist, using pre-matched results
+        assignments = self.set_tagger.assign_discs(flac_files, setlist, set_info, file_results)
         
         # Move extras after last song to encore disc
         if set_info:
