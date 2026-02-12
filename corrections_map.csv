@@ -36,12 +36,16 @@ around & around|Around And Around|learned
 around & round|Around And Around|learned
 around around|Around And Around|learned
 arounf & around|Around And Around|learned
+beat it on down the line *|Beat It On Down The Line|learned
 beat it on down the line\|Beat It On Down The Line|learned
+beat it on downtthe line|Beat It On Down The Line|learned
 beat it on dwon the line|Beat It On Down The Line|learned
 beat it on the line|Beat It On Down The Line|learned
 berhta|Bertha|learned
 berhta>|Bertha|learned
+bertha->|Bertha|learned
 big biver|Big River|learned
+big river,|Big River|learned
 big rvier|Big River|learned
 black-throated wind|Black Throated Wind|learned
 born cross eyed|Born Cross-Eyed|learned
@@ -52,11 +56,12 @@ broewn eyed women|Brown Eyed Women|learned
 brow eyed women|Brown Eyed Women|learned
 brown eyed woman|Brown Eyed Women|learned
 brown-eyed women|Brown Eyed Women|learned
+candyman %|Candyman|learned
 candymn|Candyman|learned
 cassisy|Cassidy|learned
-caution (do not step on the tracks)|Caution|learned
-caution (do not stop on tracks)|Caution|learned
-caution > feedback|Caution|learned
+caution (do not step on the tracks)|Caution (Do Not Stop On Tracks)|learned
+caution (do not stop on tracks)|Caution (Do Not Stop On Tracks)|learned
+caution > feedback|Caution (Do Not Stop On Tracks)|learned
 cc rider|C.C. Rider|learned
 china cat sunflower|China Cat Sunflower|learned
 china cat sunflower*|China Cat Sunflower|learned
@@ -100,25 +105,35 @@ drums**|Drums|learned
 drums->|Drums|learned
 dupree's diamond blues ;|Dupree's Diamond Blues|learned
 e: u.s. blues|U.S. Blues|learned
+el paso,|El Paso|learned
 esitmated prophet|Estimated Prophet|learned
 estamated prophet|Estimated Prophet|learned
 estimated prophet|Estimated Prophet|learned
+estimated prophet ->|Estimated Prophet|learned
 estimated prophet.flac|Estimated Prophet|learned
 eyes of the world|Eyes Of The World|learned
+eyes of the world ->|Eyes Of The World|learned
 eyes of the world -> jam|Eyes Of The World|learned
 eyes of the world ->*|Eyes Of The World|learned
 eyes of the world jam|Eyes Of The World|learned
+eyes of the world->|Eyes Of The World|learned
 eyes of the world.flac|Eyes Of The World|learned
 eyes of the wrold|Eyes Of The World|learned
+eyesof the world ->|Eyes Of The World|learned
 feedback%|Feedback|learned
 finiculi finicula|Funiculi Funicula|learned
 fire|Fire On The Mountain|learned
 fire on the / mountain|Fire On The Mountain|learned
 fire on the mountain|Fire On The Mountain|learned
+fire on the mountain*|Fire On The Mountain|learned
+fire on the mountain,|Fire On The Mountain|learned
 fire on the moutain|Fire On The Mountain|learned
 franklin's tower|Franklin's Tower|learned
+franklin's tower (1)|Franklin's Tower|learned
+franklin's tower,|Franklin's Tower|learned
 freind of the devil|Friend Of The Devil|learned
 friend of a devil|Friend Of The Devil|learned
+friend of the devil*|Friend Of The Devil|learned
 from the hearet of me|From The Heart Of Me|learned
 funiculi, funicula|Funiculi Funicula|learned
 funiculì, funiculà|Funiculi Funicula|learned
@@ -126,8 +141,10 @@ funiiculi funicula|Funiculi Funicula|learned
 godd lovin'|Good Lovin'|learned
 godd morning little schoolgirl|Good Morning Little Schoolgirl|learned
 goin down the road feelin bad|Goin' Down The Road Feelin' Bad|learned
+goin' down the road *|Goin' Down The Road Feelin' Bad|learned
 goin' down the road ***|Walkin' Down The Road|learned
 goin' down the road feeling bad|Goin' Down The Road Feelin' Bad|learned
+goin' down the road**|Goin' Down The Road Feelin' Bad|learned
 going down the raod feeling bad|Goin' Down The Road Feelin' Bad|learned
 going down the road feeling bad|Goin' Down The Road Feelin' Bad|learned
 golden road of unlimited devotion|Golden Road To Unlimited Devotion|learned
@@ -140,11 +157,14 @@ good morning litttle schoolgirl|Good Morning Little Schoolgirl|learned
 good morning, little schoolgirl|Good Morning Little Schoolgirl|learned
 good times blues|Good Time Blues|learned
 got my mojo workin|I Got My Mojo Workin'|learned
+got my mojo workin'|I Got My Mojo Workin'|learned
+got my mojo workin'*|I Got My Mojo Workin'|learned
 got my mojo working|I Got My Mojo Workin'|learned
 greatest story eber told|Greatest Story Ever Told|learned
 grom the heart of me|From The Heart Of Me|learned
 he was a freind of mine|He Was A Friend Of Mine|learned
 he' gone|He's Gone|learned
+he's gone %|He's Gone|learned
 heart of me|Heart Of Mine|learned
 help on the way|Help On The Way|learned
 i can't get no satisfaction|Satisfaction|learned
@@ -152,30 +172,42 @@ i know you rider|I Know You Rider|learned
 i need a mracle|I Need A Miracle|learned
 if i had a world to give|If I Had The World To Give|learned
 if i had the world to giive|If I Had The World To Give|learned
+if i had the world to give -> (2)|If I Had The World To Give|learned
 ir must have been the roses|It Must Have Been The Roses|learned
 it hurts me too|Hurts Me Too|learned
 it looks like rain|Looks Like Rain|learned
+it must have been the roses (2)|It Must Have Been The Roses|learned
 it must hve been the roses|It Must Have Been The Roses|learned
 it must've been the roses|It Must Have Been The Roses|learned
+it's all over now %|It's All Over Now|learned
 it's all over now, baby blue|It's All Over Now Baby Blue|learned
 it;s all over now|It's All Over Now|learned
+its all over now|It's All Over Now|learned
 jack sraw|Jack Straw|learned
 jack staw|Jack Straw|learned
+jack straw ;|Jack Straw|learned
+jack straw**|Jack Straw|learned
 jam > the other one|The Other One|learned
 jam > the other one >|The Other One|learned
+jam%|Jam|learned
 johnny b goode|Johnny B. Goode|learned
 johnny b.goode|Johnny B. Goode|learned
+johnyy b. goode|Johnny B. Goode|learned
 jonhnny b. goode|Johnny B. Goode|learned
 king bee|I'm A King Bee|learned
 knocking on heavens door|Knockin' On Heaven's Door|learned
 laxy lightning|Lazy Lightning|learned
 lazy lghtning|Lazy Lightning|learned
+lazy lightin'|Lazy Lightning|learned
 lazy lightnig|Lazy Lightning|learned
 lazy lightnin'|Lazy Lightning|learned
 lazy lightning > supplication|Lazy Lightning|learned
 lazy ligtning|Lazy Lightning|learned
 let it grow*|Let It Grow|learned
 letit grow|Let It Grow|learned
+looks like rain (1)|Looks Like Rain|learned
+looks like rain*|Looks Like Rain|learned
+loser,|Loser|learned
 lovelight|Turn On Your Lovelight|learned
 man smaart (woman smarter)|Man Smart (Woman Smarter)|learned
 man smart (women are smarter)|Man Smart (Woman Smarter)|learned
@@ -186,37 +218,50 @@ me & my uncle|Me And My Uncle|learned
 me & my unlce|Me And My Uncle|learned
 me and my uncle|Me And My Uncle|learned
 me and my uncle > big river|Me And My Uncle|learned
+me any my uncle|Me And My Uncle|learned
 mexicali bkues|Mexicali Blues|learned
+mexicali blues (2)|Mexicali Blues|learned
+mexicali blues ->|Mexicali Blues|learned
 mexicalii blues|Mexicali Blues|learned
 mexicalli blues|Mexicali Blues|learned
 minglewood blues|New Minglewood Blues|learned
-missisippi half step uptown toodeloo|Mississippi Half Step|learned
-missisippi half-step uptown toodeloo|Mississippi Half Step|learned
-mississippi half step uptown toodeloo|Mississippi Half Step|learned
-mississippi half step uptown toodleloo|Mississippi Half Step|learned
-mississippi half-step|Mississippi Half Step|learned
-mississippi half-step uptown toodeloo|Mississippi Half Step|learned
-mississippi half-step uptown toodleloo|Mississippi Half Step|learned
-mississippit half-step uptown toodeloo|Mississippi Half Step|learned
+missippi half-step uptown toodeloo|Mississippi Half-Step Uptown Toodeloo|learned
+missisippi half step uptown toodeloo|Mississippi Half-Step Uptown Toodeloo|learned
+missisippi half-step uptown toodeloo|Mississippi Half-Step Uptown Toodeloo|learned
+mississippi half step|Mississippi Half-Step Uptown Toodeloo|learned
+mississippi half step uptown toodeloo|Mississippi Half-Step Uptown Toodeloo|learned
+mississippi half step uptown toodleloo|Mississippi Half-Step Uptown Toodeloo|learned
+mississippi half-step|Mississippi Half-Step Uptown Toodeloo|learned
+mississippi half-step uptown toodeloo|Mississippi Half-Step Uptown Toodeloo|learned
+mississippi half-step uptown toodeloo -> (1)|Mississippi Half-Step Uptown Toodeloo|learned
+mississippi half-step uptown toodleloo|Mississippi Half-Step Uptown Toodeloo|learned
+mississippit half-step uptown toodeloo|Mississippi Half-Step Uptown Toodeloo|learned
 music never stopped|The Music Never Stopped|learned
 my & my uncle|Me And My Uncle|learned
 nerw minglwood blues|New Minglewood Blues|learned
 never trust a woman|Good Time Blues|learned
 new miglewood blues|New Minglewood Blues|learned
 new minglewood blues|New Minglewood Blues|learned
+new minglewood blues,|New Minglewood Blues|learned
 new potato caboose %|New Potato Caboose|learned
 new potato caboose%|New Potato Caboose|learned
 nobody's fault but mine jam|Nobody's Fault But Mine|learned
+not fade away **|Not Fade Away|learned
+not fade away ->|Not Fade Away|learned
 not fade away > **|Not Fade Away|learned
+not fade away**|Not Fade Away|learned
 olin arageed|Ollin Arageed|learned
 olin arrageed|Ollin Arageed|learned
 ollin arageed|Ollin Arageed|learned
 ollin arageed jam|Ollin Arageed|learned
+ollin arageed*|Ollin Arageed|learned
 ollin arageed> fire on the mountain|Ollin Arageed|learned
 ollin aranged|Ollin Arageed|learned
 ollin arrageed|Ollin Arageed|learned
 ollin arrageed *|Ollin Arageed|learned
+ollin arrageed*|Ollin Arageed|learned
 one mopre saturday night|One More Saturday Night|learned
+one more saturday night **|One More Saturday Night|learned
 other one|The Other One|learned
 other one/eleven jam|The Other One|learned
 palying in the band|Playing In The Band|learned
@@ -229,9 +274,14 @@ playin' reprise|Playing In The Band|learned
 playin' reprsie|Playing In The Band|learned
 playinf in the band|Playing In The Band|learned
 playing in the band|Playing In The Band|learned
+playing in the band (reprise)|Playing In The Band Reprise|learned
+playing in the band->|Playing In The Band|learned
+playing in theband ->|Playing In The Band|learned
 please come home|Love Please Come Home|learned
 promise land|Promised Land|learned
 raven space|Space|learned
+row jimmy %|Row Jimmy|learned
+row jimmy,|Row Jimmy|learned
 saint stephen|Saint Stephen|learned
 saint stephen reprise|Saint Stephen|learned
 same thing|The Same Thing|learned
@@ -262,9 +312,13 @@ st. stephen >|Saint Stephen|learned
 st. stephen reprise|Saint Stephen|learned
 st. stephen>|Saint Stephen|learned
 staggedr lee|Stagger Lee|learned
+stagger lee*|Stagger Lee|learned
+stagger lee,|Stagger Lee|learned
 stella blues|Stella Blue|learned
 stella bues|Stella Blue|learned
 sugar magnolia*|Sugar Magnolia|learned
+sunrise *|Sunrise|learned
+supplication (1)|Supplication|learned
 t02.duprees diamond blues|Dupree's Diamond Blues|learned
 t02.ship of fools|Ship Of Fools|learned
 t03.dancin in the streets|Dancin' In The Streets|learned
@@ -313,6 +367,7 @@ the wheel|The Wheel|learned
 the wheel ->|The Wheel|learned
 they love each other|They Love Each Other|learned
 they love each other (7:06)|They Love Each Other|learned
+they love each other,|They Love Each Other|learned
 they love each other.flac|They Love Each Other|learned
 truckiin'|Truckin'|learned
 truckin|Truckin'|learned
@@ -338,6 +393,7 @@ turn on your lovelight vocals|Turn On Your Lovelight|learned
 turn on your//love light|Turn On Your Lovelight|learned
 u. s. blues|U.S. Blues|learned
 u.s. bkues|U.S. Blues|learned
+u.s. blues*|U.S. Blues|learned
 u.s.blues|U.S. Blues|learned
 uncle johns band|Uncle John's Band|learned
 us blues|U.S. Blues|learned
@@ -349,7 +405,10 @@ weather report suite|Weather Report Suite Part 1|learned
 weathr report suite part 1|Weather Report Suite Part 1|learned
 werewolve of london|Werewolves Of London|learned
 werewolves of londaon|Werewolves Of London|learned
+werewolves of london***|Werewolves Of London|learned
+werewolves pf london|Werewolves Of London|learned
 west la fadeaway|West L.A. Fadeaway|learned
+wharf rat->|Wharf Rat|learned
 whart rat|Wharf Rat|learned
 whinnin' boy blues|Winin' Boy Blues|learned
 women are smarter|Man Smart (Woman Smarter)|learned
