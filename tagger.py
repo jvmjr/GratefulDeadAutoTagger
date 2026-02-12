@@ -74,7 +74,7 @@ class AutoTagger:
         Initialize the auto-tagger.
         
         Args:
-            db_path: Path to JerryBase.db database
+            db_path: Path to JerryBase_BCEversion.db database
             trial_mode: If True, preview changes without writing
             artwork_dir: Optional directory to search for artwork
             artwork_primary: If True, artwork_dir is searched before parent folder
@@ -812,7 +812,7 @@ Examples:
     parser.add_argument('--pad', type=int, default=2,
                         help='Number of prefix chars before date in folder name (default: 2)')
     parser.add_argument('--db', type=Path, default=DEFAULT_DB_PATH,
-                        help=f'Path to JerryBase.db (default: {DEFAULT_DB_PATH})')
+                        help=f'Path to JerryBase_BCEversion.db (default: {DEFAULT_DB_PATH})')
     parser.add_argument('--trial', action='store_true',
                         help='Trial mode - preview changes without writing')
     parser.add_argument('--no-recursive', action='store_true',

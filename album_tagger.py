@@ -56,7 +56,7 @@ class AlbumTagger:
         Initialize the album tagger.
         
         Args:
-            db_path: Path to JerryBase.db database
+            db_path: Path to JerryBase_BCEversion.db database
         """
         self.db_path = db_path
     

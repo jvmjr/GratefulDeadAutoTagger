@@ -42,7 +42,11 @@ def parse_filename_disc_track(filename: str) -> Tuple[Optional[int], Optional[in
     Handles formats like:
     - gd1973-03-24d1t01.flac -> (1, 1)
     - gd1973-03-24d2t05.flac -> (2, 5)
+    - gd68-08-21.s1t01.flac -> (1, 1)  (s = set)
+    - gd1968-08-22s2t03.flac -> (2, 3) (s = set)
     - someshow-t03.flac -> (None, 3)
+    - 01 Dark Star.flac -> (None, 1)
+    - 02 Song Name.flac -> (None, 2)
     
     Args:
         filename: The filename to parse
@@ -50,13 +54,23 @@ def parse_filename_disc_track(filename: str) -> Tuple[Optional[int], Optional[in
     Returns:
         Tuple of (disc_number, track_number) or (None, None) if not found
     """
-    # Try d#t## pattern first
+    # Try d#t## pattern first (disc-track)
     match = re.search(r'd(\d+)t(\d+)', filename, re.IGNORECASE)
+    if match:
+        return (int(match.group(1)), int(match.group(2)))
+    
+    # Try s#t## pattern (set-track, common in some archives)
+    match = re.search(r's(\d+)t(\d+)', filename, re.IGNORECASE)
     if match:
         return (int(match.group(1)), int(match.group(2)))
     
     # Try t## pattern (no disc)
     match = re.search(r't(\d+)', filename, re.IGNORECASE)
+    if match:
+        return (None, int(match.group(1)))
+    
+    # Try leading number pattern: "01 Song Name.flac" or "01. Song Name.flac"
+    match = re.match(r'^(\d{2})\s', filename)
     if match:
         return (None, int(match.group(1)))
     

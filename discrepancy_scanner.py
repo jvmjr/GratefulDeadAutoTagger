@@ -4,7 +4,7 @@
 Discrepancy Scanner for Grateful Dead / Jerry Garcia show archives.
 
 Scans show folders to find discrepancies between:
-- JerryBase.db setlist/venue data
+- JerryBase_BCEversion.db setlist/venue data
 - Accompanying .txt files (in the folder, parent dir, or adjacent txt/text folders)
 - Multiple txt files for the same show (cross-referencing)
 
@@ -1107,7 +1107,7 @@ class DiscrepancyScanner:
 def main():
     parser = argparse.ArgumentParser(
         description=('Scan show folders for discrepancies between txt files '
-                     'and JerryBase.db'),
+                     'and JerryBase_BCEversion.db'),
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -1131,7 +1131,7 @@ Examples:
                         help='Prefix chars before date in folder name '
                              '(default: 2)')
     parser.add_argument('--db', type=Path, default=DEFAULT_DB_PATH,
-                        help=f'Path to JerryBase.db '
+                        help=f'Path to JerryBase_BCEversion.db '
                              f'(default: {DEFAULT_DB_PATH})')
     parser.add_argument('-o', '--output', type=Path,
                         default=Path('discrepancy_report.csv'),

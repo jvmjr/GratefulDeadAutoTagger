@@ -127,7 +127,7 @@ class TxtParser:
                 for match in matches:
                     if len(match) == 3:  # d1t01 pattern
                         disc, track, song = match
-                        key = f"d{disc}t{track.zfill(2)}"
+                        key = f"d{int(disc)}t{track.zfill(2)}"
                         mappings[key] = song.strip()
         
         # Parse line-by-line to handle disc boundaries and track numbering
@@ -221,7 +221,7 @@ class TxtParser:
         # Try d#t## pattern (disc-specific)
         match = re.search(r'd(\d+)t(\d+)', filename, re.IGNORECASE)
         if match:
-            key = f"d{match.group(1)}t{match.group(2).zfill(2)}"
+            key = f"d{int(match.group(1))}t{match.group(2).zfill(2)}"
             if key in mappings:
                 return mappings[key]
             

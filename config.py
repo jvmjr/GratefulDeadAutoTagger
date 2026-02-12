@@ -13,7 +13,7 @@ from pathlib import Path
 AUTO_TAGGER_DIR = Path(__file__).parent
 
 # Database
-DEFAULT_DB_PATH = AUTO_TAGGER_DIR / "JerryBase.db"
+DEFAULT_DB_PATH = AUTO_TAGGER_DIR / "JerryBase_BCEversion.db"
 
 # Log files
 LOGS_DIR = AUTO_TAGGER_DIR / "logs"
